@@ -20,6 +20,11 @@ src/
   analysis.py   contribuição própria: toxicidade x papel do campeão e x relação
                 com o ofensor (qui-quadrado, V de Cramér, resíduos)
   demo.py       demo interativa de linha de comando
+  inference.py  carregamento dos modelos treinados e predição (playground/Colab)
+app/
+  playground.py playground Streamlit comparando os três modelos
+colab/
+  train_colab.ipynb  treino no Google Colab + playground Gradio
 outputs/        modelos treinados, métricas e gráficos (gerado, não versionado)
 ```
 
@@ -94,6 +99,20 @@ python src/analysis.py
 # 6. Demo interativa
 python src/demo.py --model distilbert
 ```
+
+## Playground
+
+Interface web para digitar mensagens e comparar os três modelos ajustados (e,
+opcionalmente, o toxic-bert sem fine-tuning) lado a lado:
+
+```bash
+.venv\Scripts\streamlit run app/playground.py
+```
+
+Abre em http://localhost:8501. Precisa dos modelos em `outputs/<modelo>/best_model`
+(gerados por `src/train.py --model <modelo>` ou baixados da pasta compartilhada).
+No Colab, a seção 9 do notebook `colab/train_colab.ipynb` sobe a mesma
+comparação com Gradio e gera um link público.
 
 ## Dataset e ground truth
 
