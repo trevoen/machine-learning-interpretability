@@ -1,6 +1,7 @@
 # Detecção de toxicidade no chat de League of Legends
 
-Trabalho final de PLN — detecção de discurso de ódio/toxicidade em mensagens de
+Trabalho final da disciplina AGL11001 — Interpretabilidade de Aprendizado de
+Máquina — detecção de discurso de ódio/toxicidade em mensagens de
 chat de partidas de League of Legends, com fine-tuning de Transformers e uma
 análise original cruzando toxicidade com o contexto do autor da mensagem: o
 arquétipo do campeão que ele joga (via Data Dragon, API pública da Riot Games)
