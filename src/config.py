@@ -15,7 +15,12 @@ RAW_CHATLOGS_CSV = RAW_TRIBUNAL_DIR / "chatlogs.csv"
 
 TEXT_COL = "message"
 LABEL_COL = "label"
+# Campeão jogado pelo AUTOR da mensagem (não o campeão mencionado no texto).
 CHAMPION_COL = "champion_name"
+# Relação do autor com o jogador denunciado: offender / ally / enemy.
+ASSOCIATION_COL = "association_to_offender"
+# Identificador da partida (um chatlog = uma partida com um jogador denunciado).
+GROUP_COL = "chatlog_id"
 
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 CACHE_DIR = PROJECT_ROOT / "cache"
@@ -28,7 +33,10 @@ MODEL_IDS = {
     "roberta": "roberta-base",
 }
 
-MAX_LEN = 192
+# Mensagens de chat são curtas (mediana de 2 palavras, máximo de 38), então 64
+# tokens cobre tudo. O padding é dinâmico por batch (DataCollatorWithPadding).
+MAX_LEN = 64
+VAL_SIZE = 0.1
 BATCH_SIZE = 32
 EPOCHS = 4
 LEARNING_RATE = 2e-5

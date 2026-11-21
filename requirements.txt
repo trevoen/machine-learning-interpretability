@@ -1,5 +1,5 @@
 torch>=2.2
-transformers>=4.40
+transformers>=4.46
 datasets>=2.19
 scikit-learn>=1.4
 scipy>=1.12
@@ -7,3 +7,4 @@ pandas>=2.2
 matplotlib>=3.8
 requests>=2.31
 tqdm>=4.66
+accelerate>=0.26

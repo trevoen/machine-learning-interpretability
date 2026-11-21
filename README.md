@@ -2,19 +2,22 @@
 
 Trabalho final de PLN — detecção de discurso de ódio/toxicidade em mensagens de
 chat de partidas de League of Legends, com fine-tuning de Transformers e uma
-análise original cruzando toxicidade com o arquétipo do campeão mencionado
-(via Data Dragon, API pública da Riot Games).
+análise original cruzando toxicidade com o contexto do autor da mensagem: o
+arquétipo do campeão que ele joga (via Data Dragon, API pública da Riot Games)
+e sua relação com o jogador denunciado (ofensor, aliado ou inimigo).
 
 ## Estrutura
 
 ```
 src/
   config.py     caminhos e hiperparâmetros
-  data.py       carregamento/limpeza dos splits treino/teste
+  data.py       carregamento/limpeza e folds agrupados por partida
   riot_api.py   integração com a Data Dragon (dados estáticos de campeões)
-  train.py      fine-tuning comparativo (DistilBERT / BERT / RoBERTa)
-  evaluate.py   avaliação e tabela comparativa entre modelos
-  analysis.py   contribuição própria: toxicidade x papel do campeão (qui-quadrado)
+  train.py      fine-tuning comparativo (DistilBERT / BERT / RoBERTa) com CV
+  baseline.py   baseline zero-shot (unitary/toxic-bert) nos mesmos folds
+  evaluate.py   avaliação no teste, tabela comparativa e métricas por subgrupo
+  analysis.py   contribuição própria: toxicidade x papel do campeão e x relação
+                com o ofensor (qui-quadrado, V de Cramér, resíduos)
   demo.py       demo interativa de linha de comando
 outputs/        modelos treinados, métricas e gráficos (gerado, não versionado)
 ```
@@ -29,27 +32,61 @@ Este projeto espera as seguintes pastas ao lado dele (`D:\Downloads\PLN\`):
   usados como contexto adicional (não como fonte do rótulo de toxicidade).
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+# PyTorch com CUDA (GPU NVIDIA); sem GPU, pule esta linha
+.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu126
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
+
+## Protocolo experimental (evitando vazamento de partida)
+
+O split oficial do repositório de referência é aleatório **por mensagem**, e
+todas as 101 partidas do dataset aparecem ao mesmo tempo no treino e no teste.
+Isso permite ao modelo "reconhecer" a partida (jogadores, contexto, estilo de
+escrita) e infla as métricas.
+
+Por isso o protocolo principal deste trabalho é uma **validação cruzada
+estratificada e agrupada por partida** (`StratifiedGroupKFold`, k=5) sobre o
+dataset completo (treino + teste oficiais):
+
+- cada fold de teste contém partidas que o modelo nunca viu;
+- a validação interna (escolha do melhor epoch) também é separada por partida;
+- o particionamento é determinístico e fica em cache (`cache/folds_group_k5.csv`),
+  então todos os modelos e o baseline usam exatamente os mesmos folds;
+- reportamos média ± desvio padrão entre os folds e as métricas agregadas das
+  predições out-of-fold (cada mensagem prevista uma única vez).
+
+Para quantificar o efeito do vazamento, o mesmo procedimento é repetido com
+folds aleatórios por mensagem (`--protocol message`), como no split oficial.
 
 ## Como rodar
 
 ```bash
-# 1. Conferir se os splits carregam corretamente
+# 1. Conferir os dados e os folds agrupados por partida (checa vazamento)
 python src/data.py
 
-# 2. Treinar um modelo (repita trocando --model para comparar)
-python src/train.py --model distilbert
-python src/train.py --model bert
-python src/train.py --model roberta
+# 2. Baseline zero-shot: unitary/toxic-bert, o melhor modelo pronto do paper
+#    (reproduz o F1=0.59 do paper no teste oficial e avalia nos folds agrupados)
+python src/baseline.py
 
-# 3. Avaliar e comparar todos os modelos treinados
+# 3. Fine-tuning com validação cruzada agrupada por partida (protocolo principal)
+python src/train.py --model distilbert --folds 5 --protocol group
+python src/train.py --model bert       --folds 5 --protocol group
+python src/train.py --model roberta    --folds 5 --protocol group
+
+# 3b. Mesmo procedimento com folds por mensagem, para medir o vazamento
+python src/train.py --model distilbert --folds 5 --protocol message
+
+# 3c. Execução única no split oficial (gera o modelo usado pela demo)
+python src/train.py --model distilbert
+
+# 4. Avaliar e comparar os modelos treinados
 python src/evaluate.py
 
-# 4. Análise própria: toxicidade por papel do campeão
+# 5. Análise própria: toxicidade por papel do campeão e relação com o ofensor
 python src/analysis.py
 
-# 5. Demo interativa
+# 6. Demo interativa
 python src/demo.py --model distilbert
 ```
 

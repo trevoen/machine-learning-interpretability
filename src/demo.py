@@ -1,6 +1,7 @@
 """Demo interativa: classifica uma mensagem digitada e mostra o contexto do
 campeão mencionado (via Data Dragon), se houver."""
 import argparse
+import re
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -27,8 +28,12 @@ def classify(text, tokenizer, model):
 
 
 def find_champion_mentions(text, champion_map):
+    # Fronteira de palavra para evitar falsos positivos ("Vi" em "victory").
     lowered = text.lower()
-    return [name for name in champion_map if name.lower() in lowered]
+    return [
+        name for name in champion_map
+        if re.search(rf"(?<![a-z0-9]){re.escape(name.lower())}(?![a-z0-9])", lowered)
+    ]
 
 
 def main():
