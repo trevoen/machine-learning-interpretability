@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -22,8 +23,11 @@ ASSOCIATION_COL = "association_to_offender"
 # Identificador da partida (um chatlog = uma partida com um jogador denunciado).
 GROUP_COL = "chatlog_id"
 
-OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+# Sobrescrevíveis por variável de ambiente (usado no Colab: resultados no Drive,
+# checkpoints no disco local da VM, que é bem mais rápido).
+OUTPUTS_DIR = Path(os.environ.get("PLN_OUTPUTS", PROJECT_ROOT / "outputs"))
 CACHE_DIR = PROJECT_ROOT / "cache"
+CHECKPOINTS_DIR = Path(os.environ["PLN_CHECKPOINTS"]) if os.environ.get("PLN_CHECKPOINTS") else None
 
 # Modelos comparados no fine-tuning (contribuição: comparação entre arquiteturas,
 # diferente do baseline único usado no repositório de referência).

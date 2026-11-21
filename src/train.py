@@ -38,6 +38,7 @@ from transformers import (
 
 from config import (
     BATCH_SIZE,
+    CHECKPOINTS_DIR,
     EPOCHS,
     LABEL_COL,
     LEARNING_RATE,
@@ -50,6 +51,45 @@ from config import (
 from data import get_folds, inner_validation_split, load_all, load_train_val_test
 
 METRICS = ["accuracy", "precision", "recall", "f1", "f1_macro"]
+ID2LABEL = {0: "non-toxic", 1: "toxic"}
+
+
+def write_model_card(best_dir, model_key, model_id, best_epoch, n_train, n_val, n_test, val_metrics, test_metrics):
+    """README.md dentro do best_model, para quem receber só a pasta do modelo."""
+    rows = "\n".join(f"| {m} | {val_metrics[m]:.4f} | {test_metrics[m]:.4f} |" for m in METRICS)
+    card = f"""# {model_key} fine-tuned for League of Legends chat toxicity
+
+Base model: `{model_id}`, fine-tuned for binary toxicity classification on the
+English part of the L2DTnH dataset (League of Legends Tribunal chat logs;
+Ave et al., ESORICS 2026).
+
+- Labels: `0 = non-toxic`, `1 = toxic` (decision threshold 0.5 on the softmax)
+- Training data: official train split minus a stratified 10% validation set
+  ({n_train} training / {n_val} validation messages); best epoch chosen by
+  validation F1 (epoch {best_epoch})
+- Hyperparameters: lr 2e-5, batch size 32, up to 4 epochs, 10% warmup,
+  weight decay 0.01, max length 64 tokens, fp16
+
+## Metrics (toxic class)
+
+| metric | validation | official test (n={n_test}) |
+|---|---|---|
+{rows}
+
+Note: the official split is random by message, so all 101 matches appear in
+both train and test (match leakage). In the project's match-grouped 5-fold CV,
+DistilBERT scored 0.700 +/- 0.016 F1 against 0.710 +/- 0.026 with
+message-level folds; see the project repository for the per-model numbers.
+
+## Usage
+
+```python
+from transformers import pipeline
+clf = pipeline("text-classification", model="path/to/best_model")
+clf(["gg wp", "uninstall the game you trash noob"])
+```
+"""
+    (best_dir / "README.md").write_text(card, encoding="utf-8")
 
 
 class ToxicityDataset(torch.utils.data.Dataset):
@@ -93,10 +133,12 @@ def train_one(model_key, train_df, val_df, test_df, run_dir, epochs, save_model)
     torch.manual_seed(RANDOM_SEED)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     train_ds, val_ds, test_ds = (to_dataset(tokenizer, df) for df in (train_df, val_df, test_df))
-    model = AutoModelForSequenceClassification.from_pretrained(model_id, num_labels=2)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_id, num_labels=2, id2label=ID2LABEL, label2id={v: k for k, v in ID2LABEL.items()},
+    )
 
     total_steps = math.ceil(len(train_ds) / BATCH_SIZE) * epochs
-    ckpt_dir = run_dir / "checkpoints"
+    ckpt_dir = (CHECKPOINTS_DIR / run_dir.relative_to(OUTPUTS_DIR) if CHECKPOINTS_DIR else run_dir) / "checkpoints"
     args = TrainingArguments(
         output_dir=str(ckpt_dir),
         num_train_epochs=epochs,
@@ -139,6 +181,8 @@ def train_one(model_key, train_df, val_df, test_df, run_dir, epochs, save_model)
         best_dir = run_dir / "best_model"
         trainer.save_model(str(best_dir))
         tokenizer.save_pretrained(str(best_dir))
+        write_model_card(best_dir, model_key, model_id, best_epoch, len(train_df), len(val_df),
+                         len(test_df), val_metrics, test_metrics)
     shutil.rmtree(ckpt_dir, ignore_errors=True)
 
     results = {
