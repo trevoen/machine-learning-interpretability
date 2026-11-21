@@ -15,6 +15,7 @@ src/
   riot_api.py   integração com a Data Dragon (dados estáticos de campeões)
   train.py      fine-tuning comparativo (DistilBERT / BERT / RoBERTa) com CV
   baseline.py   baseline zero-shot (unitary/toxic-bert) nos mesmos folds
+  compare.py    bootstrap pareado por partida, subgrupos e análise de erros
   evaluate.py   avaliação no teste, tabela comparativa e métricas por subgrupo
   analysis.py   contribuição própria: toxicidade x papel do campeão e x relação
                 com o ofensor (qui-quadrado, V de Cramér, resíduos)
@@ -82,6 +83,10 @@ python src/train.py --model distilbert
 
 # 4. Avaliar e comparar os modelos treinados
 python src/evaluate.py
+
+# 4b. Comparação estatística nas predições out-of-fold (bootstrap pareado
+#     por partida, subgrupos, limiar, exemplos de erro) -> outputs/comparison/
+python src/compare.py
 
 # 5. Análise própria: toxicidade por papel do campeão e relação com o ofensor
 python src/analysis.py
